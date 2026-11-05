@@ -391,8 +391,7 @@ function renderHeader(){
   const ref=addDays(mon,6);const lim=key(ref)<todayKey()?key(ref):todayKey();
   const pm=monthPay(ref.getFullYear(),ref.getMonth());let gen=0;
   for(const [k,v] of Object.entries(pm.days)){if(k<=key(ref))gen=Math.max(gen,v.acc)}
-  const st=streak();
-  $('#hSub').innerHTML=`<span>Llevas en ${MES[ref.getMonth()]}: <b class="num" id="hMoney">${eur(gen)}</b></span>${st>0?`<span class="streak">Racha <b class="num">${st}</b></span>`:''}`;
+  $('#hSub').innerHTML=`<span>Llevas en ${MES[ref.getMonth()]}: <b class="num" id="hMoney">${eur(gen)}</b></span>`;
 }
 function tramoCard(t,label){
   const pct=v=>t.target>0?Math.min(100,v/t.target*100):(v>0?100:0);
@@ -595,7 +594,6 @@ function rewardMsg(k,b,a){
   const cap=S.cfg.baseHours*60;const bm=b.pay.baseMin+b.pay.extraMin,am=a.pay.baseMin+a.pay.extraMin;
   if(bm<cap&&am>=cap)return {t:'Nómina completa',s:S.cfg.baseHours+' h cubiertas este mes'};
   if(b.week.w<b.week.t&&a.week.w>=a.week.t&&a.week.t>0)return {t:'Semana completada',s:fmt(a.week.w)+' de '+fmt(a.week.t)};
-  const st=a.streak;if(a.streak>b.streak&&[3,5,7,10,15,20,30,50].includes(st))return {t:'Racha de '+st,s:st+' turnos registrados a tiempo'};
   if(a.stats.bestK===k&&b.stats.reg>0&&a.stats.best>b.stats.best)return {t:'Récord del mes',s:'Tu día más largo: '+fmt(a.stats.best)};
   const r=S.days[k];const p=r&&r.plan&&r.plan.estado==='trabajo'?totMin(k,r.plan.tramos):0;const rm=totMin(k,r.real.tramos);
   if(p&&rm>p)return {t:'Minutos de más',s:fmt(rm-p)+' por encima del previsto'};
@@ -612,7 +610,7 @@ function countUp(el,from,to,ms){
 function showReward(o){
   const el=$('#reward');
   el.innerHTML=`<div class="rw-card" role="status">
-    <div class="rw-top"><span class="rw-title">${esc(o.msg.t)}</span>${o.streak>0?`<span class="rw-streak ${o.streakUp?'up':''}">Racha ${o.streak}</span>`:''}</div>
+    <div class="rw-top"><span class="rw-title">${esc(o.msg.t)}</span></div>
     <div class="rw-day num">+${eur(o.dayEur)}</div>
     <div class="rw-sub">${esc(o.msg.s)}</div>
     <div class="rw-total"><span>Llevas en ${o.month}</span><b class="num" id="rwTotal">${eur(o.from)}</b></div>
