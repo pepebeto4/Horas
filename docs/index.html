@@ -37,15 +37,15 @@ img{max-width:100%}
 body{background:var(--bg);color:var(--ink);font-family:var(--body);font-size:16px;line-height:1.45;
   padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));padding-block:0 48px}
 body::before{content:"";position:fixed;inset:0 0 auto;height:env(safe-area-inset-top,0px);z-index:10;background:var(--bg)}
-.wrap{max-width:560px;margin:0 auto;display:flex;flex-direction:column;gap:16px}
+.wrap{max-width:560px;margin:0 auto;display:flex;flex-direction:column;gap:8px}
 .num{font-variant-numeric:tabular-nums}
 button,select,input,textarea{font:inherit;font-size:16px;color:inherit}
 button{cursor:pointer;-webkit-tap-highlight-color:transparent}
 :focus-visible{outline:3px solid var(--accent-2);outline-offset:2px}
 
 /* cabecera */
-header.top{position:sticky;top:env(safe-area-inset-top,0px);z-index:5;background:var(--bg);padding-block:12px 10px}
-.hero{position:relative;overflow:hidden;background:var(--accent-grad);color:var(--accent-ink);border-radius:22px;padding:16px 18px;
+header.top{position:sticky;top:env(safe-area-inset-top,0px);z-index:5;background:var(--bg);padding-block:8px 6px}
+.hero{position:relative;overflow:hidden;background:var(--accent-grad);color:var(--accent-ink);border-radius:22px;padding:12px 16px;
   display:grid;grid-template-columns:1fr auto;gap:12px;align-items:center;box-shadow:0 14px 30px -14px rgba(109,40,217,.7)}
 .hero::before,.hero::after{content:"";position:absolute;border-radius:50%;background:rgba(255,255,255,.12);pointer-events:none}
 .hero::before{width:180px;height:180px;right:-50px;top:-80px}
@@ -79,34 +79,34 @@ header.top{position:sticky;top:env(safe-area-inset-top,0px);z-index:5;background
 .auth-msg{margin:0;color:var(--bad);font-size:14px}
 .onboard-card input[type=email],.onboard-card input[type=password],.onboard-card input[type=text]{border:2px solid var(--line);background:var(--card);border-radius:12px;padding:10px 12px;width:100%;box-sizing:border-box}
 input[type=file]{font-size:14px}
-.hello{font-family:var(--display);font-weight:800;font-size:22px;line-height:1.1;margin-bottom:6px}
+.hello{font-family:var(--display);font-weight:800;font-size:18px;line-height:1.1;margin-bottom:2px}
 .onboard{position:fixed;inset:0;z-index:40;background:rgba(30,21,48,.45);display:grid;place-items:center;padding:24px max(16px,env(safe-area-inset-left,0px))}
 .onboard-card{background:var(--card);border-radius:24px;padding:24px;width:100%;max-width:360px;box-sizing:border-box;display:flex;flex-direction:column;gap:14px;box-shadow:0 24px 60px -20px rgba(76,29,149,.6)}
 .onboard-card h2{margin:0;font-family:var(--display);font-weight:800;font-size:26px}
 .onboard-card .btn{width:100%}
 @media (prefers-reduced-motion:no-preference){.onboard:not([hidden]) .onboard-card{animation:pop2 .4s cubic-bezier(.3,1.5,.5,1)}@keyframes pop2{from{transform:scale(.85);opacity:0}}}
 .month-name{font-family:var(--display);font-weight:700;font-size:15px;letter-spacing:.06em;text-transform:uppercase;opacity:.85}
-.saldo{font-family:var(--display);font-weight:800;font-size:40px;line-height:1.05;letter-spacing:-.01em;margin:2px 0 4px}
+.saldo{font-family:var(--display);font-weight:800;font-size:34px;line-height:1.05;letter-spacing:-.01em;margin:0 0 2px}
 .saldo-lbl{font-size:13px;opacity:.85}
-.sub{font-size:13px;display:flex;flex-wrap:wrap;gap:4px 12px;margin-top:8px;opacity:.95}
+.sub{font-size:13px;display:flex;flex-wrap:wrap;gap:4px 12px;margin-top:4px;opacity:.95}
 .sub b{font-weight:700}
 .sub:empty{display:none}
-.ring{width:84px;height:84px}
+.ring{width:72px;height:72px}
 .ring circle{fill:none;stroke-width:9}
 .ring .trk{stroke:rgba(255,255,255,.22)}
 .ring .val{stroke:#fff;stroke-linecap:round;transform:rotate(-90deg);transform-origin:50% 50%;transition:stroke-dashoffset .9s cubic-bezier(.2,.8,.2,1)}
 .ring text{fill:#fff;font-family:var(--display);font-weight:800;font-size:20px}
 .ring .small{font-size:10px;font-weight:500;opacity:.85}
 
-nav.tabs{position:relative;display:grid;grid-template-columns:repeat(4,1fr);margin-top:12px;background:var(--surface);border-radius:999px;padding:4px}
+nav.tabs{position:relative;display:grid;grid-template-columns:repeat(4,1fr);margin-top:8px;background:var(--surface);border-radius:999px;padding:4px}
 nav.tabs .slider{position:absolute;top:4px;bottom:4px;left:4px;width:calc((100% - 8px)/4);border-radius:999px;background:var(--accent-grad);box-shadow:0 6px 14px -6px rgba(109,40,217,.7);transition:transform .35s cubic-bezier(.3,1.4,.5,1)}
-nav.tabs button{position:relative;z-index:1;border:0;background:none;border-radius:999px;padding:9px 4px;font-family:var(--display);font-weight:700;font-size:14px;color:var(--muted);transition:color .2s}
+nav.tabs button{position:relative;z-index:1;border:0;background:none;border-radius:999px;padding:7px 4px;font-family:var(--display);font-weight:700;font-size:14px;color:var(--muted);transition:color .2s}
 nav.tabs button[aria-pressed="true"]{color:var(--accent-ink)}
 
 /* navegación de semana / mes */
 .weeknav{display:flex;align-items:center;justify-content:space-between;gap:8px}
-.weeknav .lbl{font-family:var(--display);font-weight:700;font-size:20px;text-align:center}
-.iconbtn{border:0;background:var(--accent-soft);color:var(--accent);border-radius:14px;width:46px;height:42px;font-size:22px;font-weight:700;transition:transform .15s,background .2s}
+.weeknav .lbl{font-family:var(--display);font-weight:700;font-size:18px;text-align:center}
+.iconbtn{border:0;background:var(--accent-soft);color:var(--accent);border-radius:14px;width:42px;height:36px;font-size:22px;font-weight:700;transition:transform .15s,background .2s}
 .iconbtn:active{transform:scale(.9)}
 .linkbtn{border:0;background:none;color:var(--accent);font-weight:700;padding:4px 0}
 .linkbtn:hover{text-decoration:underline;text-underline-offset:3px}
@@ -140,24 +140,25 @@ nav.tabs button[aria-pressed="true"]{color:var(--accent-ink)}
 .pill.vac{background:var(--accent-soft);color:var(--accent)}
 
 /* días */
-.days{display:flex;flex-direction:column;gap:8px}
+.days{display:flex;flex-direction:column;gap:6px}
 .day{background:var(--card);border:1px solid var(--line);border-radius:18px;overflow:hidden;box-shadow:var(--shadow);transition:transform .2s,box-shadow .2s,border-color .2s}
 .day.off{background:var(--surface);box-shadow:none}
 .day.othermonth{background:repeating-linear-gradient(135deg,var(--card) 0 10px,var(--surface) 10px 12px)}
 .day.today{border-color:var(--accent-2);box-shadow:0 0 0 3px var(--accent-soft),var(--shadow)}
-.day-btn{all:unset;box-sizing:border-box;width:100%;display:grid;grid-template-columns:54px 1fr auto;gap:12px;align-items:center;padding:12px 14px;cursor:pointer}
+.day-btn{all:unset;box-sizing:border-box;width:100%;display:grid;grid-template-columns:46px 1fr auto;gap:10px;align-items:center;padding:6px 12px;cursor:pointer}
 .day-btn:focus-visible{outline:3px solid var(--accent-2);outline-offset:-3px;border-radius:18px}
 @media (hover:hover){.day:hover{transform:translateY(-2px);border-color:#d9ccf6}}
-.dname{display:flex;flex-direction:column;align-items:center;justify-content:center;width:54px;height:54px;border-radius:16px;background:var(--accent-soft);color:var(--accent);font-family:var(--display);font-weight:700;font-size:12px;letter-spacing:.08em;line-height:1}
-.dname span{font-size:22px;font-weight:800;letter-spacing:0;margin-top:3px}
+.dname{display:flex;flex-direction:column;align-items:center;justify-content:center;width:46px;height:46px;border-radius:14px;background:var(--accent-soft);color:var(--accent);font-family:var(--display);font-weight:700;font-size:12px;letter-spacing:.08em;line-height:1}
+.dname span{font-size:19px;font-weight:800;letter-spacing:0;margin-top:2px}
 .day.off .dname{background:#efedf3;color:var(--muted)}
 .day.today .dname{background:var(--accent-grad);color:#fff}
 .day.done .dname{position:relative}
 .day.done .dname::after{content:"✓";position:absolute;right:-5px;top:-5px;width:18px;height:18px;border-radius:50%;background:var(--ok);color:#fff;font-size:11px;display:grid;place-items:center;border:2px solid var(--card)}
-.dinfo{min-width:0;font-size:14px}
+.dinfo{min-width:0;font-size:14px;line-height:1.25}
+.dinfo .tl{white-space:nowrap}
 .dinfo .plan{color:var(--muted)}
 .dinfo .real{font-weight:700;color:var(--ink)}
-.dtot{font-family:var(--display);font-weight:800;font-size:20px;text-align:right}
+.dtot{font-family:var(--display);font-weight:800;font-size:18px;line-height:1.15;text-align:right}
 .dtot small{display:block;font-family:var(--body);font-weight:400;font-size:12px;color:var(--muted)}
 .dtot small.money{color:var(--accent);font-weight:700;font-family:var(--display)}
 .diff-pos{color:var(--extra)} .diff-neg{color:var(--bad)}
@@ -429,11 +430,10 @@ function renderWeek(){
   const lbl=`${mon.getDate()} ${MES[mon.getMonth()].slice(0,3)} – ${sun.getDate()} ${MES[sun.getMonth()].slice(0,3)}`;
   const trs=weekTramos(mon);
   const tk=todayKey();const curM=trs.length>1?null:trs[0].m;
-  let html=`<div class="wrap" style="gap:12px">
+  let html=`<div class="wrap" style="gap:8px">
    <div class="weeknav"><button class="iconbtn" data-act="prev" aria-label="Semana anterior">‹</button>
    <div><div class="lbl">${lbl}</div>${key(mon)!==key(mondayOf(new Date()))?'<div style="text-align:center"><button class="linkbtn" data-act="hoy">Ir a esta semana</button></div>':''}</div>
    <button class="iconbtn" data-act="next" aria-label="Semana siguiente">›</button></div>
-   <div class="tramos">${trs.map(t=>tramoCard(t,trs.length>1?'Tramo de '+MES[t.m]+' ('+t.keys.length+' días)':'')).join('')}</div>
    ${!S.loaded?'<div class="empty">Cargando datos…</div>':''}
    <div class="days">`;
   const firstM=trs[0].m;
@@ -452,11 +452,11 @@ function renderWeek(){
     html+=`<div class="day ${k===tk?'today':''} ${other?'othermonth':''} ${off?'off':''} ${real?'done':''}">
       <button class="day-btn" data-day="${k}" aria-expanded="${S.open===k}">
         <div class="dname">${DOW[i]}<span>${d.getDate()}</span></div>
-        <div class="dinfo"><div class="plan">${esc(planTxt)}</div>${real?`<div class="real num">${esc(fmtTramos(real.tramos))}</div>`:''}</div>
+        <div class="dinfo">${real?real.tramos.map(([a,b])=>`<div class="real num tl">${esc(a+'–'+b)}</div>`).join(''):(plan&&plan.estado==='trabajo'&&plan.tramos.length?plan.tramos.map(([a,b])=>`<div class="plan num tl">${esc(a+'–'+b)}</div>`).join(''):`<div class="plan">${esc(planTxt)}</div>`)}</div>
         <div class="dtot num">${right}</div>
       </button>${S.open===k?renderEditor(k):''}</div>`;
   }
-  html+=`</div></div>`;
+  html+=`</div><div class="tramos">${trs.map(t=>tramoCard(t,trs.length>1?'Tramo de '+MES[t.m]+' ('+t.keys.length+' días)':'')).join('')}</div></div>`;
   return html;
 }
 function segRows(kind,tr){
