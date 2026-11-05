@@ -11,7 +11,6 @@
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="apple-touch-icon" href="icon-180.png">
 <link rel="icon" href="icon-192.png">
-<script src="config.js"></script>
 <style>
 *,*::before,*::after{box-sizing:border-box}
 html{-webkit-text-size-adjust:100%}
@@ -229,7 +228,7 @@ tfoot td{font-weight:800;border-bottom:0;font-family:var(--display);font-size:16
     <div class="hero">
       <div>
         <div class="hello" id="hHello" hidden></div>
-        <div class="month-name" id="hMonth">Horas</div><span class="sync-dot" id="syncDot" hidden title="Pendiente de sincronizar"></span>
+        <div class="month-name" id="hMonth">Horas</div>
         <div class="saldo num" id="hSaldo">—</div>
         <div class="saldo-lbl" id="hLbl">Saldo del mes</div>
         <div class="sub" id="hSub">Cargando…</div>
@@ -256,7 +255,6 @@ tfoot td{font-weight:800;border-bottom:0;font-family:var(--display);font-size:16
 </div>
 <div class="toast" id="toast" hidden></div>
 <div class="reward" id="reward" hidden></div>
-<div class="onboard" id="gate" hidden></div>
 
 <script>
 const DOW=['L','M','X','J','V','S','D'];
@@ -565,8 +563,7 @@ function renderSettings(){
     <label class="hint" for="restore">O pega la copia</label><textarea id="restore" placeholder='{"days":{...},"cfg":{...}}'></textarea>
     <div class="row"><button class="btn danger" data-act="restore">Restaurar</button></div>
     <div id="backupOut"></div></div>
-   <div class="panel"><h3>Cuenta</h3><p class="num">${esc((SB.session&&SB.session.email)||'')}</p>
-    <div class="row"><button class="btn danger" data-act="logout">Cerrar sesión</button></div></div></div>`;
+   </div>`;
 }
 
 /* ---------- acciones ---------- */
@@ -585,7 +582,7 @@ async function saveName(n){
   await Store.setCfg(S.cfg);
 }
 function checkOnboard(){
-  const show=!!SB.session&&S.cfgLoaded&&!S.cfg.name;const o=$('#onboard');
+  const show=S.cfgLoaded&&!S.cfg.name;const o=$('#onboard');
   if(show&&o.hidden){o.hidden=false;setTimeout(()=>{try{$('#onName').focus()}catch(e){}},50)}
   if(!show)o.hidden=true;
 }
@@ -733,7 +730,6 @@ document.addEventListener('click',async e=>{
       let n=0;for(const [k,v] of Object.entries(j.days)){if(/^\d{4}-\d{2}-\d{2}$/.test(k)&&v&&typeof v==='object'&&await writeDay(k,v))n++}
       if(j.cfg){S.cfg=Object.assign({},S.cfg,j.cfg);await Store.setCfg(S.cfg)}
       toast(n+' días restaurados');break}
-    case 'logout':SB.logout();S.days={};showAuth();render();return;
     case 'namesave':{const n=$('#cfgN').value.trim();if(!n){toast('Escribe un nombre');return}
       await saveName(n);toast('Guardado');return}
     case 'cfgsave':{const w=parseFloat($('#cfgW').value),d=parseInt($('#cfgD').value);
@@ -758,123 +754,21 @@ document.addEventListener('input',e=>{
   if(el.dataset.kind==='real'){const h=document.querySelector('.editor .hint.num');if(h)h.textContent='Total real: '+fmt(totMin(S.open,S.draft.real))}
 });
 
-/* ---------- almacenamiento: caché local + Supabase ---------- */
+/* ---------- almacenamiento en el dispositivo ---------- */
 const LS={get(k,d){try{const v=localStorage.getItem('horas.'+k);return v==null?d:JSON.parse(v)}catch(e){return d}},
-  set(k,v){try{localStorage.setItem('horas.'+k,JSON.stringify(v))}catch(e){}},del(k){try{localStorage.removeItem('horas.'+k)}catch(e){}}};
-function sbConf(){
-  const c=window.HORAS_CONFIG||{};const l=LS.get('sb',{});
-  return {url:(c.SUPABASE_URL||l.url||'').replace(/\/+$/,''),key:c.SUPABASE_KEY||l.key||''};
-}
-const SB={
-  session:LS.get('session',null),
-  async req(path,opt={},retry=true){
-    const c=sbConf();await SB.ensureFresh();
-    const h=Object.assign({apikey:c.key,'Content-Type':'application/json'},opt.headers||{});
-    if(SB.session)h.Authorization='Bearer '+SB.session.access_token;
-    const r=await fetch(c.url+path,Object.assign({},opt,{headers:h}));
-    if(r.status===401&&retry&&SB.session){await SB.refresh();return SB.req(path,opt,false)}
-    if(!r.ok){let m='';try{const j=await r.json();m=j.msg||j.message||j.error_description||j.error||''}catch(e){}
-      const err=new Error(m||('Error '+r.status));err.status=r.status;throw err}
-    const t=await r.text();return t?JSON.parse(t):null;
-  },
-  async auth(kind,email,password){
-    const c=sbConf();
-    const path=kind==='signup'?'/auth/v1/signup':'/auth/v1/token?grant_type=password';
-    const r=await fetch(c.url+path,{method:'POST',headers:{apikey:c.key,'Content-Type':'application/json'},body:JSON.stringify({email,password})});
-    const j=await r.json().catch(()=>({}));
-    if(!r.ok)throw new Error(j.msg||j.error_description||j.message||'No se pudo entrar');
-    if(!j.access_token)throw new Error('Cuenta creada. Confirma el correo y vuelve a entrar.');
-    SB.setSession(j);
-  },
-  setSession(j){SB.session={access_token:j.access_token,refresh_token:j.refresh_token,expires_at:Date.now()+(j.expires_in||3600)*1000,email:j.user&&j.user.email||(SB.session&&SB.session.email)||''};LS.set('session',SB.session)},
-  async refresh(){
-    if(!SB.session)return;const c=sbConf();
-    const r=await fetch(c.url+'/auth/v1/token?grant_type=refresh_token',{method:'POST',headers:{apikey:c.key,'Content-Type':'application/json'},body:JSON.stringify({refresh_token:SB.session.refresh_token})});
-    if(r.ok){SB.setSession(await r.json())}else if(r.status===400||r.status===401){SB.logout();throw new Error('Sesión caducada')}
-  },
-  async ensureFresh(){if(SB.session&&SB.session.expires_at-Date.now()<60000&&navigator.onLine!==false){try{await SB.refresh()}catch(e){}}},
-  logout(){SB.session=null;LS.del('session');LS.del('cache');LS.del('pending')}
-};
+  set(k,v){try{localStorage.setItem('horas.'+k,JSON.stringify(v));return true}catch(e){return false}}};
 const Store={
-  pending:LS.get('pending',{days:{},cfg:null}),
-  savePending(){LS.set('pending',Store.pending);Store.badge()},
-  saveCache(){LS.set('cache',{days:S.days,cfg:S.cfg})},
-  badge(){const n=Object.keys(Store.pending.days).length+(Store.pending.cfg?1:0);const el=$('#syncDot');if(el)el.hidden=n===0},
-  async setDay(k,data){Store.pending.days[k]=data;Store.savePending();Store.saveCache();Store.flush();return true},
-  async setCfg(cfg){Store.pending.cfg=cfg;Store.savePending();Store.saveCache();Store.flush();return true},
-  async flush(){
-    if(Store._busy||!SB.session||navigator.onLine===false)return;Store._busy=true;
-    try{
-      const ups=[],dels=[];
-      for(const [k,v] of Object.entries(Store.pending.days)){if(v)ups.push({day:k,data:v,updated_at:new Date().toISOString()});else dels.push(k)}
-      if(ups.length){await SB.req('/rest/v1/days?on_conflict=user_id,day',{method:'POST',headers:{Prefer:'resolution=merge-duplicates,return=minimal'},body:JSON.stringify(ups)});
-        ups.forEach(u=>{if(Store.pending.days[u.day]===u.data)delete Store.pending.days[u.day]})}
-      for(const k of dels){await SB.req('/rest/v1/days?day=eq.'+k,{method:'DELETE',headers:{Prefer:'return=minimal'}});if(Store.pending.days[k]===null)delete Store.pending.days[k]}
-      if(Store.pending.cfg){const c=Store.pending.cfg;
-        await SB.req('/rest/v1/config?on_conflict=user_id',{method:'POST',headers:{Prefer:'resolution=merge-duplicates,return=minimal'},body:JSON.stringify([{data:c,updated_at:new Date().toISOString()}])});
-        if(Store.pending.cfg===c)Store.pending.cfg=null}
-    }catch(e){if(e.status===401||e.message==='Sesión caducada'){showAuth()}}
-    finally{Store._busy=false;Store.savePending()}
-  },
-  async pull(){
-    if(!SB.session||navigator.onLine===false)return;
-    try{
-      await Store.flush();
-      const rows=await SB.req('/rest/v1/days?select=day,data');
-      const m={};(rows||[]).forEach(r=>{m[r.day]=r.data});
-      for(const [k,v] of Object.entries(Store.pending.days)){if(v)m[k]=v;else delete m[k]}
-      S.days=m;
-      const cr=await SB.req('/rest/v1/config?select=data');
-      if(cr&&cr[0]&&cr[0].data)applyCfg(Store.pending.cfg||cr[0].data);else if(Store.pending.cfg)applyCfg(Store.pending.cfg);
-      S.cfgLoaded=true;S.loaded=true;Store.saveCache();$('#notice').hidden=true;
-      if(S.open)renderHeader();else render();checkOnboard();
-    }catch(e){if(e.status===401||e.message==='Sesión caducada')showAuth();else if(!S.loaded){S.loaded=true;render()}}
-  }
+  save(){const ok=LS.set('data',{days:S.days,cfg:S.cfg});if(!ok)toast('No se pudo guardar en el dispositivo');return ok},
+  async setDay(k,data){return Store.save()},
+  async setCfg(cfg){S.cfg=cfg;return Store.save()},
+  load(){const d=LS.get('data',null);if(d){S.days=d.days||{};if(d.cfg)applyCfg(d.cfg)}S.loaded=true;S.cfgLoaded=true}
 };
 function applyCfg(c){S.cfg={weekly:+c.weekly||30,workdays:+c.workdays||5,name:typeof c.name==='string'?c.name:'',salary:c.salary!=null?+c.salary:1177.09,baseHours:c.baseHours!=null?+c.baseHours:120,rate:c.rate!=null?+c.rate:8}}
-
-/* ---------- pantallas de acceso ---------- */
-function showSetup(){
-  $('#gate').hidden=false;
-  $('#gate').innerHTML=`<form class="onboard-card" id="setupForm">
-    <h2>Conectar</h2>
-    <label class="hint" for="suUrl">URL del proyecto</label><input type="text" id="suUrl" autocomplete="off" autocapitalize="off" placeholder="https://xxxx.supabase.co" required>
-    <label class="hint" for="suKey">Clave anon</label><input type="text" id="suKey" autocomplete="off" autocapitalize="off" required>
-    <button class="btn" type="submit">Guardar</button></form>`;
-}
-function showAuth(msg){
-  $('#gate').hidden=false;
-  $('#gate').innerHTML=`<form class="onboard-card" id="authForm">
-    <h2>Entrar</h2>
-    <input type="email" id="auEmail" autocomplete="email" aria-label="Correo" placeholder="Correo" required value="${esc((SB.session&&SB.session.email)||LS.get('email',''))}">
-    <input type="password" id="auPass" autocomplete="current-password" aria-label="Contraseña" placeholder="Contraseña" minlength="6" required>
-    ${msg?`<p class="auth-msg">${esc(msg)}</p>`:''}
-    <button class="btn" type="submit" data-kind="login">Entrar</button>
-    <button class="btn ghost" type="submit" data-kind="signup">Crear cuenta</button></form>`;
-}
-document.addEventListener('submit',async e=>{
-  if(e.target.id==='setupForm'){e.preventDefault();
-    const url=$('#suUrl').value.trim(),key=$('#suKey').value.trim();
-    if(!/^https:\/\/.+/.test(url)){toast('La URL debe empezar por https://');return}
-    LS.set('sb',{url,key});showAuth();return}
-  if(e.target.id==='authForm'){e.preventDefault();
-    const kind=(e.submitter&&e.submitter.dataset.kind)||'login';
-    const email=$('#auEmail').value.trim(),pass=$('#auPass').value;LS.set('email',email);
-    try{await SB.auth(kind,email,pass);$('#gate').hidden=true;$('#gate').innerHTML='';await Store.pull()}
-    catch(err){showAuth(err.message)}}
-});
-window.addEventListener('online',()=>Store.pull());
-document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='visible')Store.pull()});
+/* pide al navegador que no borre los datos por falta de espacio o inactividad */
+if(navigator.storage&&navigator.storage.persist){navigator.storage.persist().catch(()=>{})}
 
 /* ---------- arranque ---------- */
-(()=>{
-  const c=LS.get('cache',null);
-  if(c&&SB.session){S.days=c.days||{};if(c.cfg)applyCfg(c.cfg);S.loaded=true;S.cfgLoaded=true}
-  S.animate=true;render();Store.badge();
-  if(!sbConf().url||!sbConf().key){showSetup();return}
-  if(!SB.session){showAuth();return}
-  checkOnboard();Store.pull();
-})();
+Store.load();S.animate=true;render();checkOnboard();
 if('serviceWorker' in navigator){window.addEventListener('load',()=>navigator.serviceWorker.register('sw.js').catch(()=>{}))}
 </script>
 
