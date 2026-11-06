@@ -64,6 +64,7 @@ header.top{position:sticky;top:env(safe-area-inset-top,0px);z-index:5;background
 .summary h3{margin-bottom:2px}
 .sum-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
 .sum-grid div{background:var(--surface);border-radius:14px;padding:10px 12px;display:flex;flex-direction:column;gap:2px;min-width:0}
+.sum-grid .wide{grid-column:1/-1}
 .sum-grid span{font-size:12px;color:var(--muted)}
 .sum-grid b{font-family:var(--display);font-weight:800;font-size:20px}
 .sum-cmp{font-weight:700;font-size:14px}
@@ -325,6 +326,19 @@ function monthStats(y,m){
   return {reg,ok,best,bestK};
 }
 function dayPay(k){const d=parseKey(k);const p=monthPay(d.getFullYear(),d.getMonth());return p.days[k]}
+/* saldo del mes hasta `lim`: horas reales menos objetivo de los días ya pasados (hoy cuenta solo si ya está registrado) */
+function monthBalance(y,m,lim){
+  const tk=todayKey();const est={};
+  monthTramos(y,m).forEach(t=>t.keys.forEach(k=>est[k]=t.estimated));
+  const n=new Date(y,m+1,0).getDate();let worked=0,target=0;
+  for(let d=1;d<=n;d++){const k=key(new Date(y,m,d));if(k>lim)break;const r=S.days[k];
+    if(r&&r.real)worked+=totMin(k,r.real.tramos);
+    if(!(k<tk||(r&&r.real)))continue;
+    if(est[k])target+=S.cfg.weekly*60/7;
+    else if(r&&r.plan&&r.plan.estado==='trabajo')target+=perDayMin();}
+  return {worked,target,diff:Math.round(worked-target)};
+}
+function balTxt(d){return d>0?'Extras <b class="num">'+fmt(d)+'</b>':d<0?'Te faltan <b class="num">'+fmt(-d)+'</b>':'En objetivo'}
 function perDayMin(){return S.cfg.weekly/S.cfg.workdays*60}
 function calcTramo(keys){
   const tk=todayKey();let laborables=0,vac=0,any=false,worked=0,pending=0,missing=0;
@@ -391,7 +405,8 @@ function renderHeader(){
   const ref=addDays(mon,6);const lim=key(ref)<todayKey()?key(ref):todayKey();
   const pm=monthPay(ref.getFullYear(),ref.getMonth());let gen=0;
   for(const [k,v] of Object.entries(pm.days)){if(k<=key(ref))gen=Math.max(gen,v.acc)}
-  $('#hSub').innerHTML=`<span>Llevas en ${MES[ref.getMonth()]}: <b class="num" id="hMoney">${eur(gen)}</b></span>`;
+  const bal=monthBalance(ref.getFullYear(),ref.getMonth(),lim);
+  $('#hSub').innerHTML=`<span>Llevas en ${MES[ref.getMonth()]}: <b class="num" id="hMoney">${eur(gen)}</b></span><span>${balTxt(bal.diff)}</span>`;
 }
 function tramoCard(t,label){
   const pct=v=>t.target>0?Math.min(100,v/t.target*100):(v>0?100:0);
@@ -508,6 +523,8 @@ function renderMonth(){
        <div><span>Horas</span><b class="num">${fmt(s.worked)}</b></div>
        <div><span>A tiempo</span><b class="num">${st.ok}/${st.reg}</b></div>
        <div><span>Día más largo</span><b class="num">${st.best?fmt(st.best):'–'}</b></div>
+       ${(()=>{const lim=isCur?todayKey():key(new Date(mc.y,mc.m+1,0));const b=monthBalance(mc.y,mc.m,lim);
+         return `<div class="wide"><span>${b.diff>=0?'Horas extra':'Horas que faltan'}${isCur?' hasta hoy':''}</span><b class="num ${b.diff>0?'diff-pos':b.diff<0?'diff-neg':''}">${fmt(Math.abs(b.diff))}</b></div>`})()}
       </div>
       ${pp>0?`<div class="sum-cmp ${d>=0?'up':'down'}">${d>=0?'+':'−'}${eur(Math.abs(d))} vs ${MES[pv.m]}</div>`:''}
      </div>`})()}
