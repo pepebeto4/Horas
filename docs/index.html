@@ -51,6 +51,12 @@ header.top{position:sticky;top:env(safe-area-inset-top,0px);z-index:5;background
 .hero::before{width:180px;height:180px;right:-50px;top:-80px}
 .hero::after{width:110px;height:110px;left:38%;bottom:-70px;background:rgba(255,255,255,.08)}
 .hero>*{position:relative;min-width:0}
+.hero .ring{align-self:end}
+.eye{position:absolute!important;top:8px;right:8px;z-index:2;width:34px;height:34px;border-radius:50%;border:0;background:rgba(255,255,255,.18);color:#fff;display:grid;place-items:center;padding:0;transition:background .2s,transform .15s}
+.eye:active{transform:scale(.9)}
+.eye svg{width:18px;height:18px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+.eur,#hMoney,#rwTotal,#cfgS,#cfgR{transition:filter .25s}
+.hide-money .eur,.hide-money #hMoney,.hide-money #rwTotal,.hide-money #cfgS,.hide-money #cfgR{filter:blur(7px);user-select:none}
 .streak{background:rgba(255,255,255,.2);border-radius:999px;padding:1px 10px}
 .reward{position:fixed;left:0;right:0;bottom:0;z-index:35;padding:0 max(16px,env(safe-area-inset-right,0px)) calc(16px + env(safe-area-inset-bottom,0px)) max(16px,env(safe-area-inset-left,0px));display:flex;justify-content:center;pointer-events:none}
 .rw-card{pointer-events:auto;width:100%;max-width:420px;box-sizing:border-box;background:var(--accent);color:#fff;border-radius:24px;padding:18px 20px;box-shadow:0 20px 50px -16px rgba(76,29,149,.8)}
@@ -170,6 +176,12 @@ nav.tabs button[aria-pressed="true"]{color:var(--accent-ink)}
 .seg{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:6px}
 .seg input[type=time]{border:2px solid var(--line);background:var(--card);border-radius:12px;padding:7px 10px;min-width:0;width:124px;transition:border-color .2s}
 .seg input[type=time]:focus{border-color:var(--accent-2);outline:none}
+.seg .tick{border:2px solid var(--line);background:var(--card);color:transparent;width:34px;height:34px;border-radius:10px;font-weight:800;font-size:16px;transition:all .2s}
+.seg .tick[aria-pressed="true"]{background:var(--ok);border-color:var(--ok);color:#fff}
+.seg.undone input[type=time]{opacity:.55}
+.edit-box{display:flex;flex-direction:column;gap:12px;padding:12px;border-radius:14px;background:var(--card);border:1px dashed var(--line)}
+.dinfo .real.ok{font-weight:400;color:var(--muted)}
+.dinfo .real.ok::before{content:"✓ ";color:var(--ok);font-weight:800}
 .seg .x{border:0;background:var(--bad-soft);color:var(--bad);font-size:18px;width:32px;height:32px;border-radius:10px}
 .chips{display:flex;flex-wrap:wrap;gap:6px}
 .chip{border:2px solid var(--line);background:var(--card);border-radius:999px;padding:5px 13px;font-size:14px;font-weight:700;color:var(--muted);transition:all .2s}
@@ -228,6 +240,7 @@ tfoot td{font-weight:800;border-bottom:0;font-family:var(--display);font-size:16
 <div class="wrap">
   <header class="top">
     <div class="hero">
+      <button type="button" class="eye" id="eyeBtn" data-act="eye" aria-pressed="false" aria-label="Ocultar dinero"></button>
       <div>
         <div class="hello" id="hHello" hidden></div>
         <div class="month-name" id="hMonth">Horas</div>
@@ -294,6 +307,7 @@ function fmt(min,sign){
 function fmtTramos(tr){return (tr||[]).map(([a,b])=>a+'–'+b).join(' · ')}
 
 /* ---------- cálculo ---------- */
+function money(v){return '<span class="eur">'+eur(v)+'</span>'}
 function eur(v){return v.toLocaleString('es-ES',{minimumFractionDigits:2,maximumFractionDigits:2})+' €'}
 function baseRate(){return S.cfg.baseHours>0?S.cfg.salary/S.cfg.baseHours:0}
 /* dinero generado: en orden de fecha dentro del mes, las primeras `baseHours` horas a sueldo/baseHours y el resto a precio de hora extra. Cada mes empieza en 0 */
@@ -333,12 +347,19 @@ function monthBalance(y,m,lim){
   const n=new Date(y,m+1,0).getDate();let worked=0,target=0;
   for(let d=1;d<=n;d++){const k=key(new Date(y,m,d));if(k>lim)break;const r=S.days[k];
     if(r&&r.real)worked+=totMin(k,r.real.tramos);
-    if(!(k<tk||(r&&r.real)))continue;
+    if(!(k<tk||dayComplete(r)))continue;
     if(est[k])target+=S.cfg.weekly*60/7;
     else if(r&&r.plan&&r.plan.estado==='trabajo')target+=perDayMin();}
   return {worked,target,diff:Math.round(worked-target)};
 }
 function balTxt(d){return d>0?'Extras <b class="num">'+fmt(d)+'</b>':d<0?'Te faltan <b class="num">'+fmt(-d)+'</b>':'En objetivo'}
+function pendOf(r){return r&&r.real&&Array.isArray(r.real.pend)?r.real.pend:[]}
+function dayComplete(r){return !!(r&&r.real)&&!pendOf(r).length}
+function startKey(t){const [h,m]=t.split(':').map(Number);return (h<6?h+24:h)*60+m}
+function segEnded(k,[a,b]){
+  if(!validTime(a)||!validTime(b))return false;const d=parseKey(k);const [ah,am]=a.split(':').map(Number);
+  const st=new Date(d.getFullYear(),d.getMonth(),d.getDate(),ah,am);return new Date(st.getTime()+segMin(k,[a,b])*60000)<=new Date();
+}
 function perDayMin(){return S.cfg.weekly/S.cfg.workdays*60}
 function calcTramo(keys){
   const tk=todayKey();let laborables=0,vac=0,any=false,worked=0,pending=0,missing=0;
@@ -346,7 +367,8 @@ function calcTramo(keys){
     const d=S.days[k];
     if(d&&d.plan){any=true;
       if(d.plan.estado==='trabajo'){laborables++;
-        if(!d.real){ if(k>=tk) pending+=totMin(k,d.plan.tramos); else missing++; }}
+        if(!d.real){ if(k>=tk) pending+=totMin(k,d.plan.tramos); else missing++; }
+        else if(pendOf(d).length){ if(k>=tk) pending+=totMin(k,pendOf(d)); else missing++; }}
       if(d.plan.estado==='vacaciones')vac++;}
     if(d&&d.real)worked+=totMin(k,d.real.tramos);
   }
@@ -459,14 +481,16 @@ function renderWeek(){
     const realMin=real?totMin(k,real.tramos):null;
     const planMin=plan&&plan.estado==='trabajo'?totMin(k,plan.tramos):0;
     let right='';
-    if(real){const pay=dayPay(k);right=`${fmt(realMin)}<small class="money">+${eur(pay?pay.eur:0)}</small>`}
+    if(real){const pay=dayPay(k);right=`${fmt(realMin)}<small class="money"><span class="eur">+${eur(pay?pay.eur:0)}</span></small>`}
     else if(plan&&plan.estado==='trabajo'){right=`<span style="color:var(--muted)">${fmt(planMin)}</span><small>${k<tk?'<span class="diff-neg">sin registrar</span>':k===tk?'hoy':'previsto'}</small>`}
     const other=trs.length>1&&d.getMonth()!==firstM;
     const off=plan&&plan.estado!=='trabajo'&&!real;
-    html+=`<div class="day ${k===tk?'today':''} ${other?'othermonth':''} ${off?'off':''} ${real?'done':''}">
+    const pend=pendOf(rec);
+    const lines=real?[...real.tramos.map(t=>({t,ok:true})),...pend.map(t=>({t,ok:false}))].sort((x,y)=>startKey(x.t[0])-startKey(y.t[0])):null;
+    html+=`<div class="day ${k===tk?'today':''} ${other?'othermonth':''} ${off?'off':''} ${dayComplete(rec)?'done':''}">
       <button class="day-btn" data-day="${k}" aria-expanded="${S.open===k}">
         <div class="dname">${DOW[i]}<span>${d.getDate()}</span></div>
-        <div class="dinfo">${real?real.tramos.map(([a,b])=>`<div class="real num tl">${esc(a+'–'+b)}</div>`).join(''):(plan&&plan.estado==='trabajo'&&plan.tramos.length?plan.tramos.map(([a,b])=>`<div class="plan num tl">${esc(a+'–'+b)}</div>`).join(''):`<div class="plan">${esc(planTxt)}</div>`)}</div>
+        <div class="dinfo">${lines?lines.map(l=>`<div class="real num tl ${l.ok&&pend.length?'ok':''}">${esc(l.t[0]+'–'+l.t[1])}</div>`).join(''):(plan&&plan.estado==='trabajo'&&plan.tramos.length?plan.tramos.map(([a,b])=>`<div class="plan num tl">${esc(a+'–'+b)}</div>`).join(''):`<div class="plan">${esc(planTxt)}</div>`)}</div>
         <div class="dtot num">${right}</div>
       </button>${S.open===k?renderEditor(k):''}</div>`;
   }
@@ -474,30 +498,31 @@ function renderWeek(){
   return html;
 }
 function segRows(kind,tr){
-  return tr.map((s,i)=>`<div class="seg"><input type="time" id="${kind}-a-${i}" data-kind="${kind}" data-i="${i}" data-p="0" value="${s[0]}" aria-label="Entrada">
+  const D=S.draft;
+  return tr.map((s,i)=>{const done=kind!=='real'||D.done[i];
+   return `<div class="seg ${done?'':'undone'}">${kind==='real'?`<button class="tick" data-act="tick" data-i="${i}" aria-pressed="${done}" aria-label="${done?'Hecho':'Pendiente'}">✓</button>`:''}<input type="time" id="${kind}-a-${i}" data-kind="${kind}" data-i="${i}" data-p="0" value="${s[0]}" aria-label="Entrada">
    <span>a</span><input type="time" id="${kind}-b-${i}" data-kind="${kind}" data-i="${i}" data-p="1" value="${s[1]}" aria-label="Salida">
-   <button class="x" data-act="delseg" data-kind="${kind}" data-i="${i}" aria-label="Quitar tramo">×</button></div>`).join('');
+   ${kind!=='real'||D.edit?`<button class="x" data-act="delseg" data-kind="${kind}" data-i="${i}" aria-label="Quitar tramo">×</button>`:''}</div>`}).join('');
 }
 function renderEditor(k){
   const D=S.draft;const d=parseKey(k);
   const est=D.plan.estado;
-  const realMin=totMin(k,D.real);
   return `<div class="editor">
     <h4>${DOW_LONG[(d.getDay()+6)%7]} ${d.getDate()} de ${MES[d.getMonth()]}</h4>
-    <div><h4 style="margin-bottom:6px">Horas reales · entrada y salida exactas</h4>
-
-      ${D.real.length?segRows('real',D.real):''}
-      <div class="row" style="margin-top:6px"><button class="linkbtn" data-act="addseg" data-kind="real">+ Añadir tramo</button>
+    <div>${D.real.length?segRows('real',D.real):''}</div>
+    ${D.edit?`<div class="edit-box">
+      <div class="row"><button class="linkbtn" data-act="addseg" data-kind="real">+ Añadir tramo</button>
       ${est==='trabajo'&&D.plan.tramos.length?'<button class="linkbtn" data-act="copyplan">Restablecer al previsto</button>':''}
       ${D.real.length?'<button class="linkbtn" data-act="clearreal" style="color:var(--bad)">Quitar horas reales</button>':''}</div>
-    </div>
-    ${D.showPlan?`<div><h4 style="margin-bottom:6px">Horario previsto</h4>
+      <div><h4 style="margin-bottom:6px">Horario previsto</h4>
       <div class="chips">${['trabajo','libre'].map(e=>`<button class="chip" data-act="estado" data-v="${e}" aria-pressed="${est===e}">${e[0].toUpperCase()+e.slice(1)}</button>`).join('')}</div>
       ${est==='trabajo'?`<div style="margin-top:8px">${segRows('plan',D.plan.tramos)}
         <div class="chips" style="margin-top:6px">${TEMPLATES.map((t,i)=>`<button class="chip" data-act="tpl" data-i="${i}">${t.name}</button>`).join('')}<button class="chip" data-act="addseg" data-kind="plan">+ Tramo</button></div></div>`:''}
-    </div>`:`<div><button class="linkbtn" data-act="showplan">Cambiar horario previsto</button></div>`}
+      </div>
+      ${S.days[k]?'<div><button class="btn danger" data-act="clear">Borrar día</button></div>':''}
+    </div>`:''}
     <div class="row"><button class="btn" data-act="save">Guardar</button><button class="btn ghost" data-act="cancel">Cancelar</button>
-      ${S.days[k]?'<button class="btn danger" data-act="clear">Borrar día</button>':''}</div>
+      <button class="btn ghost" data-act="edit" aria-pressed="${!!D.edit}">${D.edit?'Cerrar edición':'Editar turno'}</button></div>
   </div>`;
 }
 function renderMonth(){
@@ -507,31 +532,31 @@ function renderMonth(){
   const rows=s.tramos.map(t=>{const a=parseKey(t.keys[0]),b=parseKey(t.keys[t.keys.length-1]);
     const g=t.keys.reduce((v,k)=>v+(pm.days[k]?pm.days[k].eur:0),0);acc+=g;
     return `<tr><td class="num">${a.getDate()}–${b.getDate()}${t.missing?' <span class="pill miss">'+t.missing+'</span>':''}</td>
-    <td class="r">${fmt(t.worked)}</td><td class="r">${eur(g)}</td><td class="r"><b>${eur(acc)}</b></td></tr>`}).join('');
+    <td class="r">${fmt(t.worked)}</td><td class="r">${money(g)}</td><td class="r"><b>${money(acc)}</b></td></tr>`}).join('');
   return `<div class="wrap" style="gap:12px">
    <div class="weeknav"><button class="iconbtn" data-act="mprev" aria-label="Mes anterior">‹</button><div class="lbl" style="text-transform:capitalize">${MES[mc.m]} ${mc.y}</div><button class="iconbtn" data-act="mnext" aria-label="Mes siguiente">›</button></div>
    <div class="panel">
     <div class="tbl-wrap"><table><thead><tr><th>Semana</th><th class="r">Horas</th><th class="r">Generado</th><th class="r">Acumulado</th></tr></thead>
     <tbody>${rows}</tbody>
-    <tfoot><tr><td>Mes</td><td class="r">${fmt(s.worked)}</td><td class="r"></td><td class="r">${eur(pm.total)}</td></tr></tfoot></table></div>
+    <tfoot><tr><td>Mes</td><td class="r">${fmt(s.worked)}</td><td class="r"></td><td class="r">${money(pm.total)}</td></tr></tfoot></table></div>
    </div>
    ${(()=>{const st=monthStats(mc.y,mc.m);const pv=mc.m?{y:mc.y,m:mc.m-1}:{y:mc.y-1,m:11};const pp=monthPay(pv.y,pv.m).total;
      const isCur=mc.y===new Date().getFullYear()&&mc.m===new Date().getMonth();const d=pm.total-pp;
      return `<div class="panel summary"><h3>${isCur?'Resumen hasta hoy':'Resumen del mes'}</h3>
       <div class="sum-grid">
-       <div><span>Generado</span><b class="num">${eur(pm.total)}</b></div>
+       <div><span>Generado</span><b class="num">${money(pm.total)}</b></div>
        <div><span>Horas</span><b class="num">${fmt(s.worked)}</b></div>
        <div><span>A tiempo</span><b class="num">${st.ok}/${st.reg}</b></div>
        <div><span>Día más largo</span><b class="num">${st.best?fmt(st.best):'–'}</b></div>
        ${(()=>{const lim=isCur?todayKey():key(new Date(mc.y,mc.m+1,0));const b=monthBalance(mc.y,mc.m,lim);
          return `<div class="wide"><span>${b.diff>=0?'Horas extra':'Horas que faltan'}${isCur?' hasta hoy':''}</span><b class="num ${b.diff>0?'diff-pos':b.diff<0?'diff-neg':''}">${fmt(Math.abs(b.diff))}</b></div>`})()}
       </div>
-      ${pp>0?`<div class="sum-cmp ${d>=0?'up':'down'}">${d>=0?'+':'−'}${eur(Math.abs(d))} vs ${MES[pv.m]}</div>`:''}
+      ${pp>0?`<div class="sum-cmp ${d>=0?'up':'down'}">${d>=0?'+':'−'}${money(Math.abs(d))} vs ${MES[pv.m]}</div>`:''}
      </div>`})()}
    <div class="panel pay">
-    <div class="pay-row"><span>Nómina ${fmt(pm.baseMin)} de ${S.cfg.baseHours}h × ${eur(baseRate())}</span><b class="num">${eur(pm.baseEur)}</b></div>
-    <div class="pay-row"><span>Extras ${fmt(pm.extraMin)} × ${eur(S.cfg.rate)}</span><b class="num">${eur(pm.extraEur)}</b></div>
-    <div class="pay-row total"><span>Generado en ${MES[mc.m]}</span><b class="num">${eur(pm.total)}</b></div>
+    <div class="pay-row"><span>Nómina ${fmt(pm.baseMin)} de ${S.cfg.baseHours}h × ${money(baseRate())}</span><b class="num">${money(pm.baseEur)}</b></div>
+    <div class="pay-row"><span>Extras ${fmt(pm.extraMin)} × ${money(S.cfg.rate)}</span><b class="num">${money(pm.extraEur)}</b></div>
+    <div class="pay-row total"><span>Generado en ${MES[mc.m]}</span><b class="num">${money(pm.total)}</b></div>
     <div class="row"><button class="btn ghost" data-act="csv">Exportar CSV del mes</button></div>
    </div></div>`;
 }
@@ -583,6 +608,14 @@ function renderSettings(){
 }
 
 /* ---------- acciones ---------- */
+const EYE_OPEN='<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/></svg>';
+const EYE_SHUT='<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 3l18 18"/><path d="M10.6 5.1A10.6 10.6 0 0 1 12 5c6.4 0 10 7 10 7a17.6 17.6 0 0 1-3.2 4.1M6.6 6.6C3.9 8.4 2 12 2 12s3.6 7 10 7c1.6 0 3-.4 4.3-1"/><path d="M9.9 9.9a3 3 0 0 0 4.2 4.2"/></svg>';
+function setHide(h){
+  document.documentElement.classList.toggle('hide-money',h);
+  const b=document.getElementById('eyeBtn');if(b){b.innerHTML=h?EYE_SHUT:EYE_OPEN;b.setAttribute('aria-pressed',String(h));b.setAttribute('aria-label',h?'Mostrar dinero':'Ocultar dinero')}
+  try{localStorage.setItem('horas.hide',h?'1':'0')}catch(e){}
+}
+try{setHide(localStorage.getItem('horas.hide')==='1')}catch(e){setHide(false)}
 function toast(t){const el=$('#toast');el.textContent=t;el.hidden=false;clearTimeout(toast._t);toast._t=setTimeout(()=>el.hidden=true,2600)}
 function burst(){
   if(matchMedia('(prefers-reduced-motion: reduce)').matches)return;
@@ -612,7 +645,7 @@ function rewardMsg(k,b,a){
   if(bm<cap&&am>=cap)return {t:'Nómina completa',s:S.cfg.baseHours+' h cubiertas este mes'};
   if(b.week.w<b.week.t&&a.week.w>=a.week.t&&a.week.t>0)return {t:'Semana completada',s:fmt(a.week.w)+' de '+fmt(a.week.t)};
   if(a.stats.bestK===k&&b.stats.reg>0&&a.stats.best>b.stats.best)return {t:'Récord del mes',s:'Tu día más largo: '+fmt(a.stats.best)};
-  const r=S.days[k];const p=r&&r.plan&&r.plan.estado==='trabajo'?totMin(k,r.plan.tramos):0;const rm=totMin(k,r.real.tramos);
+  const r=S.days[k];const p=r&&r.plan&&r.plan.estado==='trabajo'?Math.max(0,totMin(k,r.plan.tramos)-totMin(k,pendOf(r))):0;const rm=totMin(k,r.real.tramos);
   if(p&&rm>p)return {t:'Minutos de más',s:fmt(rm-p)+' por encima del previsto'};
   const pool=[['Turno guardado','Uno menos'],['Registrado','Cuentas claras'],['Hecho','Al día con tus horas'],['Apuntado','Nada se pierde'],['Listo','Otro turno en el bolsillo']];
   const x=pool[Math.floor(Math.random()*pool.length)];return {t:x[0],s:x[1]};
@@ -628,7 +661,7 @@ function showReward(o){
   const el=$('#reward');
   el.innerHTML=`<div class="rw-card" role="status">
     <div class="rw-top"><span class="rw-title">${esc(o.msg.t)}</span></div>
-    <div class="rw-day num">+${eur(o.dayEur)}</div>
+    <div class="rw-day num"><span class="eur">+${eur(o.dayEur)}</span></div>
     <div class="rw-sub">${esc(o.msg.s)}</div>
     <div class="rw-total"><span>Llevas en ${o.month}</span><b class="num" id="rwTotal">${eur(o.from)}</b></div>
   </div>`;
@@ -641,8 +674,12 @@ function openDay(k){
   if(S.open===k){S.open=null;S.draft=null;render();return}
   const r=S.days[k]||{};
   S.open=k;S.draft={plan:r.plan?{estado:r.plan.estado,tramos:(r.plan.tramos||[]).map(s=>[...s])}:{estado:'trabajo',tramos:[]},
-    real:r.real?(r.real.tramos||[]).map(s=>[...s]):[],nota:r.nota||'',showPlan:!r.plan};
-  if(!r.real&&r.plan&&r.plan.estado==='trabajo'){S.draft.real=r.plan.tramos.map(s=>[...s]);S.draft.prefilled=true}
+    real:[],done:[],nota:r.nota||'',edit:!r.plan&&!r.real};
+  let rows=[];
+  if(r.real){rows=[...(r.real.tramos||[]).map(t=>({t:[...t],ok:true})),...pendOf(r).map(t=>({t:[...t],ok:false}))]}
+  else if(r.plan&&r.plan.estado==='trabajo'){rows=(r.plan.tramos||[]).map(t=>({t:[...t],ok:k<todayKey()||segEnded(k,t)}))}
+  rows.sort((x,y)=>startKey(x.t[0]||'00:00')-startKey(y.t[0]||'00:00'));
+  S.draft.real=rows.map(x=>x.t);S.draft.done=rows.map(x=>x.ok);
   render();
 }
 function cleanTramos(tr){return tr.filter(s=>validTime(s[0])&&validTime(s[1]))}
@@ -653,14 +690,16 @@ async function writeDay(k,data){
 async function saveDraft(){
   const k=S.open,D=S.draft;const nota=($('#nota')||{}).value||'';
   const plan=D.plan.estado==='trabajo'?{estado:'trabajo',tramos:cleanTramos(D.plan.tramos)}:{estado:D.plan.estado,tramos:[]};
-  const real=cleanTramos(D.real);
+  const rows=D.real.map((t,i)=>({t,ok:D.done[i]})).filter(x=>validTime(x.t[0])&&validTime(x.t[1]));
+  const real=rows.filter(x=>x.ok).map(x=>x.t),pend=rows.filter(x=>!x.ok).map(x=>x.t);
   const had=S.days[k];
   const dk=parseKey(k);const Y=dk.getFullYear(),Mo=dk.getMonth();
   const before={pay:monthPay(Y,Mo),stats:monthStats(Y,Mo),streak:streak(),week:weekTramos(mondayOf(dk)).reduce((a,t)=>({w:a.w+t.worked,t:a.t+t.target}),{w:0,t:0})};
   const data={};
   if(had&&had.plan||D.plan.estado!=='trabajo'||plan.tramos.length)data.plan=plan;
   if(real.length){const same=had&&had.real&&JSON.stringify(had.real.tramos)===JSON.stringify(real);
-    data.real={tramos:real,at:(had&&had.real&&had.real.at)||new Date().toISOString()};if(same&&had.real.at)data.real.at=had.real.at}
+    data.real={tramos:real,at:(had&&had.real&&had.real.at)||new Date().toISOString()};if(same&&had.real.at)data.real.at=had.real.at;
+    if(pend.length)data.real.pend=pend}
   if(nota.trim())data.nota=nota.trim();
   S.open=null;S.draft=null;
   const ok=await writeDay(k,Object.keys(data).length?data:null);
@@ -725,10 +764,13 @@ document.addEventListener('click',async e=>{
     case 'hoy':S.animate=true;S.cursor=mondayOf(new Date());break;
     case 'mprev':S.animate=true;{const m=S.monthCursor;S.monthCursor=m.m?{y:m.y,m:m.m-1}:{y:m.y-1,m:11};break}
     case 'mnext':S.animate=true;{const m=S.monthCursor;S.monthCursor=m.m<11?{y:m.y,m:m.m+1}:{y:m.y+1,m:0};break}
-    case 'addseg':(t.dataset.kind==='real'?D.real:D.plan.tramos).push(['','']);break;
-    case 'delseg':(t.dataset.kind==='real'?D.real:D.plan.tramos).splice(+t.dataset.i,1);break;
-    case 'copyplan':D.real=D.plan.tramos.map(s=>[...s]);break;
-    case 'clearreal':D.real=[];D.prefilled=false;break;
+    case 'addseg':if(t.dataset.kind==='real'){D.real.push(['','']);D.done.push(true)}else D.plan.tramos.push(['','']);break;
+    case 'delseg':if(t.dataset.kind==='real'){D.real.splice(+t.dataset.i,1);D.done.splice(+t.dataset.i,1)}else D.plan.tramos.splice(+t.dataset.i,1);break;
+    case 'copyplan':D.real=D.plan.tramos.map(s=>[...s]);D.done=D.real.map(x=>S.open<todayKey()||segEnded(S.open,x));break;
+    case 'clearreal':D.real=D.plan.tramos.map(s=>[...s]);D.done=D.real.map(()=>false);break;
+    case 'eye':setHide(!document.documentElement.classList.contains('hide-money'));return;
+    case 'tick':D.done[+t.dataset.i]=!D.done[+t.dataset.i];break;
+    case 'edit':D.edit=!D.edit;break;
     case 'showplan':D.showPlan=true;break;
     case 'estado':D.plan.estado=t.dataset.v;break;
     case 'tpl':D.plan.estado='trabajo';D.plan.tramos=TEMPLATES[+t.dataset.i].tramos.map(s=>[...s]);break;
@@ -766,7 +808,7 @@ document.addEventListener('input',e=>{
   const el=e.target;if(!el.dataset||!el.dataset.kind||!S.draft)return;
   const arr=el.dataset.kind==='real'?S.draft.real:S.draft.plan.tramos;
   arr[+el.dataset.i][+el.dataset.p]=el.value;
-  if(el.dataset.kind==='real'){const h=document.querySelector('.editor .hint.num');if(h)h.textContent='Total real: '+fmt(totMin(S.open,S.draft.real))}
+  if(el.dataset.kind==='real'&&!S.draft.done[+el.dataset.i]){S.draft.done[+el.dataset.i]=true;const row=el.closest('.seg');if(row){row.classList.remove('undone');const tb=row.querySelector('.tick');if(tb)tb.setAttribute('aria-pressed','true')}}
 });
 
 /* ---------- almacenamiento en el dispositivo ---------- */
