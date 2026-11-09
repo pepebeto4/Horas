@@ -91,6 +91,20 @@ input[type=file]{font-size:14px}
 .onboard-card{background:var(--card);border-radius:24px;padding:24px;width:100%;max-width:360px;box-sizing:border-box;display:flex;flex-direction:column;gap:14px;box-shadow:0 24px 60px -20px rgba(76,29,149,.6)}
 .onboard-card h2{margin:0;font-family:var(--display);font-weight:800;font-size:26px}
 .onboard-card .btn{width:100%}
+.tour{position:fixed;inset:0;z-index:60}
+.tour-spot{position:fixed;box-shadow:0 0 0 9999px rgba(20,10,40,.78);transition:all .35s cubic-bezier(.3,1.2,.5,1);cursor:pointer}
+.tour-spot::after{content:"";position:absolute;inset:-4px;border-radius:inherit;border:3px solid #c4b5fd}
+.tour-card{position:fixed;left:max(16px,env(safe-area-inset-left,0px));right:max(16px,env(safe-area-inset-right,0px));max-width:420px;margin:0 auto;background:var(--card);border-radius:20px;padding:16px 18px;display:flex;flex-direction:column;gap:8px;box-shadow:0 20px 50px -16px rgba(0,0,0,.6)}
+.tour-card h3{margin:0;font-family:var(--display);font-weight:800;font-size:20px}
+.tour-card p{margin:0;font-size:15px;color:var(--ink)}
+.tour-step{font-size:12px;font-weight:700;color:var(--accent);letter-spacing:.06em;text-transform:uppercase}
+.tour-card .row{justify-content:flex-end;margin-top:4px}
+.touring body{overflow:hidden}
+@media (prefers-reduced-motion:no-preference){.tour-spot::after{animation:tourPulse 1.6s ease-out infinite}@keyframes tourPulse{0%{transform:scale(1);opacity:1}100%{transform:scale(1.25);opacity:0}}.tour-card{animation:rise .35s ease-out}}
+@media (prefers-reduced-motion:reduce){.tour-spot{transition:none}}
+.on-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
+.on-grid>div{display:flex;flex-direction:column;gap:4px;min-width:0}
+.onboard-card{max-height:calc(100dvh - 48px);overflow:auto}
 @media (prefers-reduced-motion:no-preference){.onboard:not([hidden]) .onboard-card{animation:pop2 .4s cubic-bezier(.3,1.5,.5,1)}@keyframes pop2{from{transform:scale(.85);opacity:0}}}
 .month-name{font-family:var(--display);font-weight:700;font-size:15px;letter-spacing:.06em;text-transform:uppercase;opacity:.85}
 .saldo{font-family:var(--display);font-weight:800;font-size:34px;line-height:1.05;letter-spacing:-.01em;margin:0 0 2px}
@@ -261,14 +275,26 @@ tfoot td{font-weight:800;border-bottom:0;font-family:var(--display);font-size:16
   <div id="notice" hidden></div>
   <div class="onboard" id="onboard" hidden>
     <form class="onboard-card" id="onboardForm">
-      <h2>¿Cómo te llamas?</h2>
-      <input type="text" id="onName" autocomplete="given-name" maxlength="40" aria-label="Tu nombre" required>
+      <h2>Configura tu app</h2>
+      <label class="hint" for="onName">Nombre</label>
+      <input type="text" id="onName" autocomplete="given-name" maxlength="40" required>
+      <div class="on-grid">
+        <div><label class="hint" for="onW">Horas semanales</label><input type="text" inputmode="decimal" id="onW" required></div>
+        <div><label class="hint" for="onD">Días por semana</label><input type="text" inputmode="numeric" id="onD" required></div>
+        <div><label class="hint" for="onS">Sueldo base (€)</label><input type="text" inputmode="decimal" id="onS" required></div>
+        <div><label class="hint" for="onH">Horas de nómina / mes</label><input type="text" inputmode="decimal" id="onH" required></div>
+        <div><label class="hint" for="onR">Hora extra (€)</label><input type="text" inputmode="decimal" id="onR" required></div>
+      </div>
+      <p class="auth-msg" id="onErr" hidden></p>
       <button class="btn" type="submit">Empezar</button>
     </form>
   </div>
   <main id="main"></main>
 </div>
 <div class="toast" id="toast" hidden></div>
+<div class="tour" id="tour" hidden><div class="tour-spot" id="tourSpot"></div>
+  <div class="tour-card" id="tourCard" role="dialog" aria-live="polite"><div class="tour-step" id="tourStep"></div><h3 id="tourTitle"></h3><p id="tourText"></p>
+  <div class="row"><button type="button" class="btn ghost" id="tourSkip">Saltar</button><button type="button" class="btn" id="tourNext">Siguiente</button></div></div></div>
 <div class="reward" id="reward" hidden></div>
 
 <script>
@@ -279,7 +305,7 @@ const TEMPLATES=[
   {name:'Partida 12–16 · 20–00',tramos:[['12:00','16:00'],['20:00','00:00']]},
   {name:'Merienda 02–10',tramos:[['02:00','10:00']]}
 ];
-const S={days:{},cfg:{weekly:30,workdays:5,salary:1177.09,baseHours:120,rate:8},db:null,dl:null,loaded:false,
+const S={days:{},cfg:{weekly:null,workdays:null,salary:null,baseHours:null,rate:null,name:''},db:null,dl:null,loaded:false,
   cursor:mondayOf(new Date()),monthCursor:null,view:'semana',open:null,draft:null,preview:null};
 
 /* ---------- fechas ---------- */
@@ -360,7 +386,7 @@ function segEnded(k,[a,b]){
   if(!validTime(a)||!validTime(b))return false;const d=parseKey(k);const [ah,am]=a.split(':').map(Number);
   const st=new Date(d.getFullYear(),d.getMonth(),d.getDate(),ah,am);return new Date(st.getTime()+segMin(k,[a,b])*60000)<=new Date();
 }
-function perDayMin(){return S.cfg.weekly/S.cfg.workdays*60}
+function perDayMin(){return S.cfg.weekly>0&&S.cfg.workdays>0?S.cfg.weekly/S.cfg.workdays*60:0}
 function calcTramo(keys){
   const tk=todayKey();let laborables=0,vac=0,any=false,worked=0,pending=0,missing=0;
   for(const k of keys){
@@ -586,15 +612,16 @@ function renderImport(){
 }
 function renderSettings(){
   return `<div class="wrap" style="gap:12px">
+   <div class="panel"><h3>Tutorial</h3><div class="row"><button class="btn ghost" data-act="tour">Ver tutorial</button></div></div>
    <div class="panel"><h3>Perfil</h3>
     <div><label class="hint" for="cfgN">Nombre</label><input type="text" id="cfgN" maxlength="40" value="${esc(S.cfg.name||'')}"></div>
     <div class="row"><button class="btn" data-act="namesave">Guardar</button></div></div>
    <div class="panel"><h3>Contrato</h3>
-    <div class="row"><div style="flex:1;min-width:120px"><label class="hint" for="cfgW">Horas semanales</label><input type="number" id="cfgW" min="1" max="60" step="0.5" value="${S.cfg.weekly}"></div>
-    <div style="flex:1;min-width:120px"><label class="hint" for="cfgD">Días laborables / semana</label><input type="number" id="cfgD" min="1" max="7" step="1" value="${S.cfg.workdays}"></div></div>
-    <div class="row"><div style="flex:1;min-width:120px"><label class="hint" for="cfgS">Sueldo base (€)</label><input type="text" inputmode="decimal" id="cfgS" value="${String(S.cfg.salary).replace('.',',')}"></div>
-    <div style="flex:1;min-width:120px"><label class="hint" for="cfgH">Horas de nómina / mes</label><input type="number" id="cfgH" min="1" max="300" step="1" value="${S.cfg.baseHours}"></div>
-    <div style="flex:1;min-width:120px"><label class="hint" for="cfgR">Hora extra (€)</label><input type="text" inputmode="decimal" id="cfgR" value="${String(S.cfg.rate).replace('.',',')}"></div></div>
+    <div class="row"><div style="flex:1;min-width:120px"><label class="hint" for="cfgW">Horas semanales</label><input type="number" id="cfgW" min="1" max="60" step="0.5" value="${S.cfg.weekly??''}"></div>
+    <div style="flex:1;min-width:120px"><label class="hint" for="cfgD">Días laborables / semana</label><input type="number" id="cfgD" min="1" max="7" step="1" value="${S.cfg.workdays??''}"></div></div>
+    <div class="row"><div style="flex:1;min-width:120px"><label class="hint" for="cfgS">Sueldo base (€)</label><input type="text" inputmode="decimal" id="cfgS" value="${S.cfg.salary==null?'':String(S.cfg.salary).replace('.',',')}"></div>
+    <div style="flex:1;min-width:120px"><label class="hint" for="cfgH">Horas de nómina / mes</label><input type="number" id="cfgH" min="1" max="300" step="1" value="${S.cfg.baseHours??''}"></div>
+    <div style="flex:1;min-width:120px"><label class="hint" for="cfgR">Hora extra (€)</label><input type="text" inputmode="decimal" id="cfgR" value="${S.cfg.rate==null?'':String(S.cfg.rate).replace('.',',')}"></div></div>
 
     <div class="row"><button class="btn" data-act="cfgsave">Guardar</button></div></div>
    <div class="panel"><h3>Copia de seguridad</h3>
@@ -631,14 +658,20 @@ async function saveName(n){
   await Store.setCfg(S.cfg);
 }
 function checkOnboard(){
-  const show=S.cfgLoaded&&!S.cfg.name;const o=$('#onboard');
-  if(show&&o.hidden){o.hidden=false;setTimeout(()=>{try{$('#onName').focus()}catch(e){}},50)}
+  const show=S.cfgLoaded&&!cfgReady();const o=$('#onboard');
+  if(show&&o.hidden){o.hidden=false;const c=S.cfg,v=x=>x==null?'':String(x).replace('.',',');
+    $('#onName').value=c.name||'';$('#onW').value=v(c.weekly);$('#onD').value=v(c.workdays);$('#onS').value=v(c.salary);$('#onH').value=v(c.baseHours);$('#onR').value=v(c.rate);
+    setTimeout(()=>{try{$('#onName').focus()}catch(e){}},50)}
   if(!show)o.hidden=true;
 }
 document.addEventListener('submit',async e=>{
   if(e.target.id!=='onboardForm')return;e.preventDefault();
-  const n=$('#onName').value.trim();if(!n)return;
-  $('#onboard').hidden=true;await saveName(n);burst();
+  const n=$('#onName').value.trim();const w=numOr($('#onW').value),d=numOr($('#onD').value),sal=numOr($('#onS').value),bh=numOr($('#onH').value),rt=numOr($('#onR').value);
+  const err=$('#onErr');
+  if(!n||!(w>0&&w<=60)||!(d>=1&&d<=7&&Number.isInteger(d))||!(sal>=0)||sal===null||!(bh>0&&bh<=300)||!(rt>=0)||rt===null){err.textContent='Revisa los campos: todos son obligatorios y deben ser números válidos.';err.hidden=false;return}
+  err.hidden=true;S.cfg=Object.assign({},S.cfg,{name:n,weekly:w,workdays:d,salary:sal,baseHours:bh,rate:rt});
+  $('#onboard').hidden=true;await Store.setCfg(S.cfg);render();burst();
+  if(!tourDone())setTimeout(()=>Tour.start(),900);
 });
 function rewardMsg(k,b,a){
   const cap=S.cfg.baseHours*60;const bm=b.pay.baseMin+b.pay.extraMin,am=a.pay.baseMin+a.pay.extraMin;
@@ -768,6 +801,7 @@ document.addEventListener('click',async e=>{
     case 'delseg':if(t.dataset.kind==='real'){D.real.splice(+t.dataset.i,1);D.done.splice(+t.dataset.i,1)}else D.plan.tramos.splice(+t.dataset.i,1);break;
     case 'copyplan':D.real=D.plan.tramos.map(s=>[...s]);D.done=D.real.map(x=>S.open<todayKey()||segEnded(S.open,x));break;
     case 'clearreal':D.real=D.plan.tramos.map(s=>[...s]);D.done=D.real.map(()=>false);break;
+    case 'tour':Tour.start();return;
     case 'eye':setHide(!document.documentElement.classList.contains('hide-money'));return;
     case 'tick':D.done[+t.dataset.i]=!D.done[+t.dataset.i];break;
     case 'edit':D.edit=!D.edit;break;
@@ -811,6 +845,45 @@ document.addEventListener('input',e=>{
   if(el.dataset.kind==='real'&&!S.draft.done[+el.dataset.i]){S.draft.done[+el.dataset.i]=true;const row=el.closest('.seg');if(row){row.classList.remove('undone');const tb=row.querySelector('.tick');if(tb)tb.setAttribute('aria-pressed','true')}}
 });
 
+/* ---------- tutorial ---------- */
+const TOUR=[
+  {sel:'.hero',shape:'box',t:'Tu semana',x:'Arriba ves las horas trabajadas esta semana, lo que llevas ganado en el mes y si vas con horas extra o te faltan.'},
+  {sel:'#eyeBtn',t:'Ocultar el dinero',x:'Toca el ojo para difuminar todas las cantidades. Útil si alguien está mirando tu pantalla.'},
+  {sel:'[data-view="importar"]',t:'Carga tu horario',x:'Cada semana pega aquí tu horario. Puedes pedirle a Claude que lo saque de la foto del cuadrante.'},
+  {sel:'.day-btn',shape:'box',pick:true,t:'Registra tus horas',x:'Al terminar cada turno, toca el día, ajusta la hora exacta de entrada y salida y guarda. Si haces turno partido, registra cada parte cuando acabe.'},
+  {sel:'.tramos',shape:'box',t:'La semana de un vistazo',x:'Cada barra es un día. Morado: horas registradas. Lila: previstas. Naranja: te quedaste más de lo previsto.'},
+  {sel:'[data-view="mes"]',t:'Resumen del mes',x:'Horas, dinero por semana, nómina y extras del mes. Cada mes empieza de cero.'},
+  {sel:'[data-view="ajustes"]',t:'Ajustes',x:'Cambia tu nombre, sueldo y horas, y descarga una copia de seguridad cada mes: los datos solo viven en este móvil.'}
+];
+const Tour={i:0,
+  start(){S.view='semana';S.open=null;S.cursor=mondayOf(new Date());render();$('#tour').hidden=false;document.documentElement.classList.add('touring');Tour.i=0;Tour.show()},
+  end(){$('#tour').hidden=true;document.documentElement.classList.remove('touring');try{localStorage.setItem('horas.tour','1')}catch(e){};window.scrollTo(0,0)},
+  target(st){if(!st.pick)return document.querySelector(st.sel);
+    const tk=todayKey();return document.querySelector(`.day-btn[data-day="${tk}"]`)||document.querySelector('.day-btn')},
+  show(){
+    const st=TOUR[Tour.i];const el=Tour.target(st);if(!el){Tour.next();return}
+    const sticky=el.closest('header.top');if(!sticky){el.scrollIntoView({block:'center',behavior:'instant'})}else window.scrollTo(0,0);
+    requestAnimationFrame(()=>requestAnimationFrame(()=>Tour.place(el,st)));
+    $('#tourStep').textContent=(Tour.i+1)+' de '+TOUR.length;$('#tourTitle').textContent=st.t;$('#tourText').textContent=st.x;
+    $('#tourNext').textContent=Tour.i===TOUR.length-1?'Entendido':'Siguiente';
+  },
+  place(el,st){
+    const r=el.getBoundingClientRect();const sp=$('#tourSpot');const pad=8;
+    if(st.shape==='box'){sp.style.left=(r.left-pad)+'px';sp.style.top=(r.top-pad)+'px';sp.style.width=(r.width+pad*2)+'px';sp.style.height=(r.height+pad*2)+'px';sp.style.borderRadius='22px'}
+    else{const d=Math.max(r.width,r.height)+pad*2+6;sp.style.left=(r.left+r.width/2-d/2)+'px';sp.style.top=(r.top+r.height/2-d/2)+'px';sp.style.width=d+'px';sp.style.height=d+'px';sp.style.borderRadius='50%'}
+    const c=$('#tourCard');const vh=innerHeight;const spB=parseFloat(sp.style.top)+parseFloat(sp.style.height);const spT=parseFloat(sp.style.top);
+    c.style.top='';c.style.bottom='';
+    if(vh-spB>=200){c.style.top=(spB+14)+'px'}else{c.style.bottom=(vh-spT+14)+'px'}
+  },
+  next(){Tour.i++;if(Tour.i>=TOUR.length)Tour.end();else Tour.show()}
+};
+document.getElementById('tourNext').addEventListener('click',e=>{e.stopPropagation();Tour.next()});
+document.getElementById('tourSkip').addEventListener('click',e=>{e.stopPropagation();Tour.end()});
+document.getElementById('tourSpot').addEventListener('click',e=>{e.stopPropagation();Tour.next()});
+document.getElementById('tour').addEventListener('click',e=>e.stopPropagation());
+window.addEventListener('resize',()=>{if(!$('#tour').hidden)Tour.show()});
+function tourDone(){try{return localStorage.getItem('horas.tour')==='1'}catch(e){return true}}
+
 /* ---------- almacenamiento en el dispositivo ---------- */
 const LS={get(k,d){try{const v=localStorage.getItem('horas.'+k);return v==null?d:JSON.parse(v)}catch(e){return d}},
   set(k,v){try{localStorage.setItem('horas.'+k,JSON.stringify(v));return true}catch(e){return false}}};
@@ -820,12 +893,15 @@ const Store={
   async setCfg(cfg){S.cfg=cfg;return Store.save()},
   load(){const d=LS.get('data',null);if(d){S.days=d.days||{};if(d.cfg)applyCfg(d.cfg)}S.loaded=true;S.cfgLoaded=true}
 };
-function applyCfg(c){S.cfg={weekly:+c.weekly||30,workdays:+c.workdays||5,name:typeof c.name==='string'?c.name:'',salary:c.salary!=null?+c.salary:1177.09,baseHours:c.baseHours!=null?+c.baseHours:120,rate:c.rate!=null?+c.rate:8}}
+function numOr(v){const n=parseFloat(String(v).replace(',','.'));return v==null||v===''||!isFinite(n)?null:n}
+function applyCfg(c){S.cfg={weekly:numOr(c.weekly),workdays:numOr(c.workdays),name:typeof c.name==='string'?c.name:'',salary:numOr(c.salary),baseHours:numOr(c.baseHours),rate:numOr(c.rate)}}
+function cfgReady(){const c=S.cfg;return !!c.name&&c.weekly>0&&c.workdays>=1&&c.salary>=0&&c.salary!==null&&c.baseHours>0&&c.rate>=0&&c.rate!==null}
 /* pide al navegador que no borre los datos por falta de espacio o inactividad */
 if(navigator.storage&&navigator.storage.persist){navigator.storage.persist().catch(()=>{})}
 
 /* ---------- arranque ---------- */
 Store.load();S.animate=true;render();checkOnboard();
+if(cfgReady()&&!tourDone())setTimeout(()=>Tour.start(),700);
 /* bloquea el zoom con dos dedos y con doble toque (Safari ignora user-scalable en algunos casos) */
 ['gesturestart','gesturechange','gestureend'].forEach(t=>document.addEventListener(t,e=>e.preventDefault(),{passive:false}));
 document.addEventListener('touchmove',e=>{if(e.touches&&e.touches.length>1)e.preventDefault()},{passive:false});
